@@ -2,7 +2,7 @@ function App() {
   return (
     <div>
       <h1>Robot Dashboard</h1>
-      <p>Status: Connected</p>
+      <p>Status: Available</p>
     </div>
   );
 }
