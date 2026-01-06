@@ -10,20 +10,32 @@
   --border-color: #2e323b;
 }
 
+html {
+  height: 100%;
+  width: 100%;
+}
+
 body {
   margin: 0;
   padding: 0;
   background-color: var(--bg-dark);
   color: var(--text-primary);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  height: 100vh;
-  overflow: hidden; /* Prevent scrolling for a fixed app feel */
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
 }
 
 .dashboard-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
+  width: 100%;
   padding: 12px;
   gap: 12px;
   box-sizing: border-box;
@@ -37,6 +49,7 @@ body {
   background: var(--bg-panel);
   padding: 0 20px;
   height: 60px;
+  flex-shrink: 0;
   border-radius: 8px;
   border: 1px solid var(--border-color);
 }
@@ -63,10 +76,48 @@ body {
 /* --- MAIN VIEW GRID --- */
 .main-grid {
   display: grid;
-  grid-template-columns: 2.5fr 1fr; /* 70% Left, 30% Right */
+  grid-template-columns: 0.8fr 2fr 0.8fr;
+  grid-template-rows: 1fr auto;
   gap: 12px;
-  flex: 1; /* Takes up all remaining vertical space */
-  min-height: 0; /* Critical for scrolling internal elements */
+  flex: 1;
+  min-height: 0;
+}
+
+/* Left sidebar with LIDAR and Robot Drive */
+.left-sidebar {
+  grid-column: 1;
+  grid-row: 1 / 3;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+/* Right sidebar with MAP and PTZ */
+.right-sidebar {
+  grid-column: 3;
+  grid-row: 1 / 3;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+/* Center content area with cameras */
+.center-cameras {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  grid-column: 2;
+  grid-row: 1;
+  min-height: 0;
+}
+
+/* Center controls with Actions */
+.center-controls {
+  grid-column: 2;
+  grid-row: 2;
+  flex-shrink: 0;
 }
 
 /* Primary Camera Window */
@@ -78,6 +129,8 @@ body {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  aspect-ratio: 16 / 9;
+  min-height: 0;
 }
 
 .overlay-text {
@@ -95,18 +148,10 @@ body {
 .camera-feed {
   width: 100%;
   height: 100%;
-  object-fit: cover; /* Ensures video fills the box */
-}
-
-/* Right Side Stack (Thermal + LiDAR + Map) */
-.side-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  object-fit: contain;
 }
 
 .secondary-panel {
-  flex: 1; /* Each panel takes equal height */
   background: var(--bg-panel);
   border-radius: 8px;
   border: 1px solid var(--border-color);
@@ -115,6 +160,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  aspect-ratio: 16 / 9;
+  min-height: 0;
 }
 
 /* Placeholder for LiDAR visualization */
@@ -130,16 +177,28 @@ body {
   flex-direction: column;
 }
 
-/* --- CONTROL DECK --- */
-.control-deck {
-  height: 220px;
+/* --- CONTROL SECTIONS --- */
+.control-section {
   background: var(--bg-panel);
   border-radius: 8px;
   border: 1px solid var(--border-color);
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr; /* Robot | Actions | PTZ */
   padding: 15px;
-  gap: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.left-controls {
+  flex: 1;
+}
+
+.center-control-section {
+  flex: 1;
+}
+
+.right-controls {
+  flex: 1;
 }
 
 .control-group {
@@ -189,10 +248,10 @@ body {
 /* Action Buttons Grid */
 .actions-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
   gap: 10px;
   width: 100%;
-  max-width: 300px;
+  max-width: 600px;
 }
 
 .btn-action {
