@@ -1,4 +1,4 @@
-#backend/main.py
+#backend/main.py - use 'uvicorn main:app --reload' to run
 #Code to call the APIs and handle the requests
 import subprocess
 import threading
@@ -19,6 +19,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+#--------------------------------------STATUS BAR-----------------------------------------------------------
+
+
+
+
+#--------------------------------------CAMERA-----------------------------------------------------------
 # --- 2. CAMERA CONFIGURATION (Camera IP and channel)---
 CAM_URL = "http://192.168.1.19/ISAPI/PTZCtrl/channels/1/continuous"
 
@@ -49,9 +55,26 @@ def send_command(cmd: PTZCommand):
     elif cmd.direction == "right":   pan = s
     elif cmd.direction == "up":      tilt = s
     elif cmd.direction == "down":    tilt = -s
-    elif cmd.direction == "zoom_in": zoom = s
-    elif cmd.direction == "zoom_out": zoom = -s
-    #"stop" defaults to 0,0,0
+    
+    #Diagonal Movement
+    elif cmd.direction == "up_left":
+        pan = -s
+        tilt = s
+    elif cmd.direction == "up_right":
+        pan = s
+        tilt = s
+    elif cmd.direction == "down_left":
+        pan = -s
+        tilt = -s
+    elif cmd.direction == "down_right":
+        pan = s
+        tilt = -s
+
+    #Zoom control
+    elif cmd.direction == "zoom_in":
+        zoom = s
+    elif cmd.direction == "zoom_out":
+        zoom = -s
 
     #XML Payload 
     #Hikvision cameras expects XML format
@@ -89,12 +112,11 @@ def send_command(cmd: PTZCommand):
     
 
 # --- Video Streaming Endpoint ---
-
 # --- RTSP URL for Cam and Thermal ---
 # --- Optical Camera --
 RTSP_CAM_URL = "rtsp://admin:abcd1234@192.168.1.19:554/Streaming/Channels/102"
 @app.get("/api/video")
-def video_proxy():
+def optical_video_proxy():
     def generate():
         # FFmpeg command to convert RTSP -> MJPEG frames with improved quality
         ffmpeg_cmd = [
@@ -148,7 +170,7 @@ def video_proxy():
 # --- Thermal Camera ---
 RTSP_THERMALCAM_URL = "rtsp://admin:ipc12345@192.168.1.29:554/Streaming/Channels/102"
 @app.get("/api/thermal")
-def video_proxy():
+def thermal_video_proxy():
     def generate():
         # FFmpeg command to convert RTSP -> MJPEG frames with improved quality
         ffmpeg_cmd = [

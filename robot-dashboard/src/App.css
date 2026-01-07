@@ -76,8 +76,8 @@ body {
 /* --- MAIN VIEW GRID --- */
 .main-grid {
   display: grid;
-  grid-template-columns: 0.8fr 2fr 0.8fr;
-  grid-template-rows: 1fr auto;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
   gap: 12px;
   flex: 1;
   min-height: 0;
@@ -85,39 +85,50 @@ body {
 
 /* Left sidebar with LIDAR and Robot Drive */
 .left-sidebar {
+  display: contents;
+}
+
+.left-sidebar > .secondary-panel {
   grid-column: 1;
-  grid-row: 1 / 3;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-height: 0;
+  grid-row: 2;
+}
+
+.left-sidebar > .control-section {
+  grid-column: 3;
+  grid-row: 2;
 }
 
 /* Right sidebar with MAP and PTZ */
 .right-sidebar {
+  display: contents;
+}
+
+.right-sidebar > .control-section {
   grid-column: 3;
-  grid-row: 1 / 3;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-height: 0;
+  grid-row: 1;
+}
+
+.right-sidebar > .secondary-panel {
+  grid-column: 2;
+  grid-row: 2;
 }
 
 /* Center content area with cameras */
 .center-cameras {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  grid-column: 2;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  grid-column: 1 / 3;
   grid-row: 1;
   min-height: 0;
 }
 
 /* Center controls with Actions */
 .center-controls {
-  grid-column: 2;
+  grid-column: 1;
   grid-row: 2;
   flex-shrink: 0;
+  display: none;
 }
 
 /* Primary Camera Window */
@@ -148,7 +159,7 @@ body {
 .camera-feed {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
 }
 
 .secondary-panel {
@@ -182,11 +193,14 @@ body {
   background: var(--bg-panel);
   border-radius: 8px;
   border: 1px solid var(--border-color);
-  padding: 15px;
+  position: relative;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  aspect-ratio: 16 / 9;
+  min-height: 0;
 }
 
 .left-controls {
@@ -206,6 +220,17 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+}
+
+.ptz-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  position: relative;
+  flex: 1;
+  width: 100%;
 }
 
 .group-label {
@@ -232,18 +257,39 @@ body {
   font-size: 1.2rem;
   cursor: pointer;
   transition: all 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .btn-ctrl:active { background: var(--accent-blue); transform: translateY(2px); }
 .btn-ctrl:hover { background: #3a4150; }
 
+.btn-zoom {
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+}
+
 .btn-stop {
-  background: rgba(239, 68, 68, 0.2);
+  background: rgba(252, 5, 5, 0.2);
   color: var(--accent-red);
   border-color: var(--accent-red);
   font-weight: bold;
   font-size: 0.8rem;
 }
 .btn-stop:active { background: var(--accent-red); color: white; }
+
+.btn-home {
+  background: rgba(33, 251, 0, 0.2);
+  color: var(--accent-green);
+  border-color: var(--accent-green);
+  font-weight: bold;
+  font-size: 0.8rem;
+}
+
 
 /* Action Buttons Grid */
 .actions-grid {
@@ -262,5 +308,28 @@ body {
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .btn-action:hover { background: #3a4150; }
+
+/* PTZ Bottom Buttons */
+.ptz-bottom-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+  max-width: 160px;
+  margin-top: 8px;
+}
+
+/* Camera Bottom Left Buttons */
+.camera-button {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  z-index: 15;
+}

@@ -1,64 +1,96 @@
-import { useState } from 'react';
+//Code for controlling a PTZ camera via a dashboard interface
+interface PTZCameraProps {
+  onMove: (dir: string) => void;
+  status: string;
+}
 
-const API_URL = "http://localhost:8000/api/proxy"; // Points to Python
-
-export default function PTZCamera() {
-  const [status, setStatus] = useState("Ready");
-
-  const send = async (dir: string) => {
-    setStatus(dir === "stop" ? "Stopping" : `Moving ${dir}...`);
-    try {
-      await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'move', direction: dir, speed: 60 })
-      });
-    } catch (e) {
-      console.error(e);
-      setStatus("Error");
-    }
-  };
-
+export default function PTZCamera({ onMove, status }: PTZCameraProps) {
   return (
-    <div className="control-group">
-      <div className="group-label">PTZ CONTROL</div>
-      <div className="d-pad">
-         {/* ZOOM IN */}
-         <button className="btn-ctrl" 
-           onMouseDown={() => send('zoom_in')} 
-           onMouseUp={() => send('stop')}>+</button>
-         
-         {/* UP */}
-         <button className="btn-ctrl" 
-           onMouseDown={() => send('up')} 
-           onMouseUp={() => send('stop')}>▲</button>
-         
-         {/* ZOOM OUT */}
-         <button className="btn-ctrl" 
-           onMouseDown={() => send('zoom_out')} 
-           onMouseUp={() => send('stop')}>-</button>
-         
-         {/* LEFT */}
-         <button className="btn-ctrl" 
-           onMouseDown={() => send('left')} 
-           onMouseUp={() => send('stop')}>◀</button>
-         
-         {/* STOP (Emergency) */}
-         <button className="btn-ctrl stop" onClick={() => send('stop')}>●</button>
-         
-         {/* RIGHT */}
-         <button className="btn-ctrl" 
-           onMouseDown={() => send('right')} 
-           onMouseUp={() => send('stop')}>▶</button>
-         
-         <div></div>
-         {/* DOWN */}
-         <button className="btn-ctrl" 
-           onMouseDown={() => send('down')} 
-           onMouseUp={() => send('stop')}>▼</button>
-         <div></div>
+    <div className="ptz-container">
+      <div className="group-label">PTZ CAMERA CONTROL</div>
+
+      {/* PTZ Layout with Zoom on Sides */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {/* ZOOM OUT - LEFT */}
+        <button className="btn-ctrl btn-zoom"
+          onMouseDown={() => onMove('zoom_out')}
+          onMouseUp={() => onMove('stop')}
+          onMouseLeave={() => onMove('stop')}
+        >🔍−</button>
+
+        {/* D-PAD - CENTER */}
+        <div className="d-pad">
+          {/* TOP LEFT */}
+          <button className="btn-ctrl"
+            onMouseDown={() => onMove('up_left')}
+            onMouseUp={() => onMove('stop')}
+            onMouseLeave={() => onMove('stop')}
+          >↖</button>
+
+          {/* UP */}
+          <button className="btn-ctrl"
+            onMouseDown={() => onMove('up')}
+            onMouseUp={() => onMove('stop')}
+            onMouseLeave={() => onMove('stop')}
+          >▲</button>
+
+          {/* TOP RIGHT */}
+          <button className="btn-ctrl"
+            onMouseDown={() => onMove('up_right')}
+            onMouseUp={() => onMove('stop')}
+            onMouseLeave={() => onMove('stop')}
+          >↗</button>
+
+          {/* LEFT */}
+          <button className="btn-ctrl"
+            onMouseDown={() => onMove('left')}
+            onMouseUp={() => onMove('stop')}
+            onMouseLeave={() => onMove('stop')}
+          >◀</button>
+
+          {/* HOME */}
+          <button className="btn-ctrl btn-home"
+            onClick={() => onMove('home')}
+          >⌂</button>
+
+          {/* RIGHT */}
+          <button className="btn-ctrl"
+            onMouseDown={() => onMove('right')}
+            onMouseUp={() => onMove('stop')}
+            onMouseLeave={() => onMove('stop')}
+          >▶</button>
+
+          {/* BOTTOM LEFT */}
+          <button className="btn-ctrl"
+            onMouseDown={() => onMove('down_left')}
+            onMouseUp={() => onMove('stop')}
+            onMouseLeave={() => onMove('stop')}
+          >↙</button>
+
+          {/* DOWN */}
+          <button className="btn-ctrl"
+            onMouseDown={() => onMove('down')}
+            onMouseUp={() => onMove('stop')}
+            onMouseLeave={() => onMove('stop')}
+          >▼</button>
+
+          {/* BOTTOM RIGHT */}
+          <button className="btn-ctrl"
+            onMouseDown={() => onMove('down_right')}
+            onMouseUp={() => onMove('stop')}
+            onMouseLeave={() => onMove('stop')}
+          >↘</button>
+        </div>
+
+        {/* ZOOM IN - RIGHT */}
+        <button className="btn-ctrl btn-zoom"
+          onMouseDown={() => onMove('zoom_in')}
+          onMouseUp={() => onMove('stop')}
+          onMouseLeave={() => onMove('stop')}
+        >🔍+</button>
       </div>
-      <small style={{color:'#666'}}>{status}</small>
+
+      <small style={{ color: '#666', marginTop: '8px' }}>{status}</small>
     </div>
   );
 }
