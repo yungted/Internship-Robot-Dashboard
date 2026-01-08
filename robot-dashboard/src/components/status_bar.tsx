@@ -1,202 +1,185 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import * as ROSLIB from 'roslib';
 
 interface StatusBarProps {
+  // We keep this prop in case the parent component (e.g., Joystick) needs to know the status
   onConnectionChange: (isConnected: boolean) => void;
 }
 
+const ROBOT_WS_URL = 'ws://192.168.1.102:9090';
+
+/* ======================================================
+   GLOBAL SINGLETON & DATA STORE
+   (Background Logic - Invisible to User)
+====================================================== */
+
+// 1. The Data Store
+const bmsStore = {
+  SOC: 0,
+  SOH: 0,
+  batteryCurrent: 0,
+  batteryVoltage: 0,
+  batteryTemperature: 0,
+};
+
+// 2. Connection State
+let ros: ROSLIB.Ros | null = null;
+let reconnectTimer: number | null = null;
+let isGlobalConnecting = false;
+let isGlobalConnected = false;
+
+// 3. Listeners
+const dataListeners = new Set<() => void>();
+const connectionListeners = new Set<(connected: boolean) => void>();
+
+const notifyDataChange = () => dataListeners.forEach((cb) => cb());
+const notifyConnectionChange = (status: boolean) => {
+  isGlobalConnected = status;
+  connectionListeners.forEach((cb) => cb(status));
+};
+
+// 4. Background Subscription Manager
+function setupSubscriptions() {
+  if (!ros) return;
+
+  const statusListener = new ROSLIB.Topic({
+    ros: ros,
+    name: '/dash_board/BMS_status',
+  });
+
+  statusListener.subscribe((message: any) => {
+    const data = message.msg ?? message;
+
+    if (data.SOC !== undefined) bmsStore.SOC = data.SOC;
+    if (data.SOH !== undefined) bmsStore.SOH = data.SOH;
+    if (data.batteryCurrent !== undefined) bmsStore.batteryCurrent = data.batteryCurrent;
+    if (data.batteryVoltage !== undefined) bmsStore.batteryVoltage = data.batteryVoltage;
+    if (data.batteryTemperature !== undefined) bmsStore.batteryTemperature = data.batteryTemperature;
+
+    notifyDataChange();
+  });
+}
+
+// 5. Connection Loop
+function connectRos() {
+  if (ros || isGlobalConnecting) return;
+  isGlobalConnecting = true;
+  // console.log('[ROS] Connecting...'); // Optional: Comment out for total silence
+
+  ros = new ROSLIB.Ros({ url: ROBOT_WS_URL });
+
+  ros.on('connection', () => {
+    // console.log('[ROS] Connected');
+    isGlobalConnecting = false;
+    notifyConnectionChange(true);
+    setupSubscriptions(); // Auto-subscribe on connect
+  });
+
+  ros.on('close', () => {
+    ros = null;
+    isGlobalConnecting = false;
+    notifyConnectionChange(false);
+    
+    // Silent auto-reconnect
+    if (!reconnectTimer) {
+      reconnectTimer = window.setTimeout(() => {
+        reconnectTimer = null;
+        connectRos();
+      }, 3000);
+    }
+  });
+
+  ros.on('error', () => {
+    // Suppress errors in console if desired, or keep minimal logging
+  });
+}
+
+// Initialize immediately
+connectRos();
+
+
+/* ======================================================
+   COMPONENT
+====================================================== */
 export default function StatusBar({ onConnectionChange }: StatusBarProps) {
-  // --- STATE ---
-  const [battery, setBattery] = useState<number>(0);
-  const [batterySOH, setBatterySOH] = useState<number>(0);
-  const [batteryCurrent, setBatteryCurrent] = useState<number>(0);
-  const [batteryVoltage, setBatteryVoltage] = useState<number>(0);
-  const [batteryTemperature, setBatteryTemperature] = useState<number>(0);
-  const [isConnected, setIsConnected] = useState<boolean>(false);
-  const [debugMsg, setDebugMsg] = useState<string>('Initializing...');
+  // We only track 'bms' for rendering. 
+  // We don't track 'isConnected' for rendering anymore, only for the callback.
+  const [bms, setBms] = useState({ ...bmsStore });
 
-  // --- CONFIGURATION ---
-  const ROBOT_WS_URL = 'ws://192.168.1.102:9090';
-
-  // --- REFS ---
-  const rosRef = useRef<ROSLIB.Ros | null>(null);
-  const reconnectTimerRef = useRef<number | null>(null);
-  const isMountedRef = useRef<boolean>(true); // Tracks if component is alive
-  
-  // Ref for the callback to prevent dependency loops
-  const onConnectionChangeRef = useRef(onConnectionChange);
-
-  // Update the callback ref whenever the parent changes it
   useEffect(() => {
-    onConnectionChangeRef.current = onConnectionChange;
-  }, [onConnectionChange]);
+    const handleDataUpdate = () => setBms({ ...bmsStore });
 
-  // --- MAIN CONNECTION LOGIC ---
-  useEffect(() => {
-    isMountedRef.current = true; // Mark as alive on mount
-
-    // Prevent duplicate connections
-    if (rosRef.current) return;
-
-    const connectToRos = () => {
-      // Safety: Don't try to connect if we are already unmounted
-      if (!isMountedRef.current) return;
-
-      console.log(`[StatusBar] Connecting to ${ROBOT_WS_URL}...`);
-      setDebugMsg('Connecting...');
-
-      const ros = new ROSLIB.Ros({
-        url: ROBOT_WS_URL,
-      });
-
-      rosRef.current = ros;
-
-      // --- EVENT: CONNECTED ---
-      ros.on('connection', () => {
-        if (!isMountedRef.current) return;
-        
-        console.log('[StatusBar] ✅ Connected');
-        setDebugMsg('Connected');
-        setIsConnected(true);
-        onConnectionChangeRef.current(true);
-
-        // Clear any pending reconnect timers
-        if (reconnectTimerRef.current) {
-          clearTimeout(reconnectTimerRef.current);
-          reconnectTimerRef.current = null;
-        }
-      });
-
-      // --- EVENT: ERROR ---
-      ros.on('error', (error) => {
-        if (!isMountedRef.current) return;
-        console.warn('[StatusBar] ❌ ROS Error:', error);
-        setDebugMsg('Connection Error');
-        // We let the 'close' event handle the retry logic
-      });
-
-      // --- EVENT: CLOSED ---
-      ros.on('close', () => {
-        // 🛑 CRITICAL FIX: If we unmounted intentionally, STOP HERE.
-        if (!isMountedRef.current) {
-            console.log('[StatusBar] Intentional close. No retry.');
-            return;
-        }
-
-        console.log('[StatusBar] ⚠️ Connection dropped. Retrying in 3s...');
-        setDebugMsg('Reconnecting...');
-        setIsConnected(false);
-        onConnectionChangeRef.current(false);
-        
-        rosRef.current = null;
-
-        // Only schedule a retry if one isn't already pending
-        if (!reconnectTimerRef.current) {
-          reconnectTimerRef.current = window.setTimeout(() => {
-            if (isMountedRef.current) {
-                connectToRos();
-            }
-          }, 3000);
-        }
-      });
-
-      // --- SUBSCRIPTIONS ---
-      // @ts-ignore
-      const statusListener = new ROSLIB.Topic({
-        ros: ros,
-        name: '/dash_board/BMS_status',
-        // messageType: 'std_msgs/String' // Uncomment if you know the type
-      });
-
-      statusListener.subscribe((message: any) => {
-        if (!isMountedRef.current) return;
-        
-        // Handle both direct JSON and ROS message formats
-        const data = message.msg || message;
-
-        // Update state only if values exist
-        if (data.SOC !== undefined) setBattery(data.SOC);
-        if (data.SOH !== undefined) setBatterySOH(data.SOH);
-        if (data.batteryCurrent !== undefined) setBatteryCurrent(data.batteryCurrent);
-        if (data.batteryVoltage !== undefined) setBatteryVoltage(data.batteryVoltage);
-        if (data.batteryTemperature !== undefined) setBatteryTemperature(data.batteryTemperature);
-      });
+    // We still listen to connection changes to notify the PARENT (via onConnectionChange)
+    // but we won't update any local state to trigger a UI re-render for it.
+    const handleConnectionUpdate = (connected: boolean) => {
+      onConnectionChange(connected);
     };
 
-    // Start the connection
-    connectToRos();
+    dataListeners.add(handleDataUpdate);
+    connectionListeners.add(handleConnectionUpdate);
 
-    // --- CLEANUP ---
+    // Initial sync for parent
+    onConnectionChange(isGlobalConnected);
+
     return () => {
-      console.log('[StatusBar] 🧹 Unmounting...');
-      isMountedRef.current = false; // 1. Kill the "alive" flag
-
-      if (reconnectTimerRef.current) {
-        clearTimeout(reconnectTimerRef.current);
-      }
-
-      if (rosRef.current) {
-        rosRef.current.close(); // 2. Close connection (Won't trigger retry because flag is false)
-        rosRef.current = null;
-      }
+      dataListeners.delete(handleDataUpdate);
+      connectionListeners.delete(handleConnectionUpdate);
     };
-  }, []); // ⚠️ Empty dependency array = Runs ONCE
+  }, [onConnectionChange]);
 
   return (
     <header className="header">
-      <h2 style={{ margin: 0, letterSpacing: '1px' }}>🤖 AGILEX RANGER CONTROLLER</h2>
+      <h2 style={{ margin: 0, letterSpacing: '1px' }}>
+        🤖 AGILEX RANGER CONTROLLER
+      </h2>
+
       <div className="status-bar">
-        
-        {/* CONNECTION STATUS */}
-        <div className="status-item">
-          <span style={{ fontSize: '11px', marginRight: '8px', color: '#999' }}>
-            {debugMsg}
-          </span>
-          <div className="indicator" style={{ background: isConnected ? '#10b981' : '#ef4444' }}></div>
-          {isConnected ? 'ONLINE' : 'OFFLINE'}
-        </div>
-        
-        {/* BATTERY SOC */}
+        {/* REMOVED: The "status-item" block containing debugMsg 
+           and the Online/Offline indicator. 
+        */}
+
         <div className="status-item">
           <span style={{ color: '#8b9bb4' }}>BATTERY:</span>
-          <span style={{ color: battery < 20 ? '#ef4444' : '#10b981' }}>
-            {battery}%
+          <span style={{ color: bms.SOC < 20 ? '#ef4444' : '#10b981' }}>
+            {bms.SOC}%
           </span>
         </div>
 
-        {/* BATTERY SOH */}
         <div className="status-item">
           <span style={{ color: '#8b9bb4' }}>SOH:</span>
-          <span style={{ color: batterySOH < 80 ? '#f59e0b' : '#10b981' }}>
-            {batterySOH}%
+          <span style={{ color: bms.SOH < 80 ? '#f59e0b' : '#10b981' }}>
+            {bms.SOH}%
           </span>
         </div>
 
-        {/* VOLTAGE */}
         <div className="status-item">
           <span style={{ color: '#8b9bb4' }}>VOLTAGE:</span>
-          <span style={{ color: '#3b82f6' }}>{batteryVoltage.toFixed(1)}V</span>
-        </div>
-
-        {/* CURRENT */}
-        <div className="status-item">
-          <span style={{ color: '#8b9bb4' }}>CURRENT:</span>
-          <span style={{ color: '#3b82f6' }}>{batteryCurrent.toFixed(1)}A</span>
-        </div>
-
-        {/* TEMPERATURE */}
-        <div className="status-item">
-          <span style={{ color: '#8b9bb4' }}>TEMP:</span>
-          <span style={{ color: batteryTemperature > 50 ? '#ef4444' : '#10b981' }}>
-            {batteryTemperature.toFixed(1)}°C
+          <span style={{ color: '#3b82f6' }}>
+            {bms.batteryVoltage.toFixed(1)}V
           </span>
         </div>
 
-        {/* STATUS PLACEHOLDER */}
+        <div className="status-item">
+          <span style={{ color: '#8b9bb4' }}>CURRENT:</span>
+          <span style={{ color: '#3b82f6' }}>
+            {bms.batteryCurrent.toFixed(1)}A
+          </span>
+        </div>
+
+        <div className="status-item">
+          <span style={{ color: '#8b9bb4' }}>TEMP:</span>
+          <span
+            style={{
+              color: bms.batteryTemperature > 50 ? '#ef4444' : '#10b981',
+            }}
+          >
+            {bms.batteryTemperature.toFixed(1)}°C
+          </span>
+        </div>
+
         <div className="status-item">
           <span style={{ color: '#8b9bb4' }}>STATUS:</span>
         </div>
-
       </div>
     </header>
   );
