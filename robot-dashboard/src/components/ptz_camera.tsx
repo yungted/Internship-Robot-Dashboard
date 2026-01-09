@@ -1,10 +1,12 @@
-//Code for controlling a PTZ camera via a dashboard interface
+/* src/components/ptz_camera.tsx */
 interface PTZCameraProps {
   onMove: (dir: string) => void;
+  // ✅ FIX: Add onCapture to the interface so TypeScript knows it exists
+  onCapture: (camera: 'OPTICAL' | 'THERMAL') => void;
   status: string;
 }
 
-export default function PTZCamera({ onMove, status }: PTZCameraProps) {
+export default function PTZCamera({ onMove, onCapture, status }: PTZCameraProps) {
   return (
     <div className="ptz-container">
       <div className="group-label">PTZ CAMERA CONTROL</div>
@@ -48,7 +50,7 @@ export default function PTZCamera({ onMove, status }: PTZCameraProps) {
             onMouseLeave={() => onMove('stop')}
           >◀</button>
 
-          {/* HOME */}
+          {/* HOME - Resets Position */}
           <button className="btn-ctrl btn-home"
             onClick={() => onMove('home')}
           >⌂</button>
@@ -90,7 +92,7 @@ export default function PTZCamera({ onMove, status }: PTZCameraProps) {
         >🔍+</button>
       </div>
 
-      <small style={{ color: '#666', marginTop: '8px' }}>{status}</small>
+      <small style={{ color: '#666', marginTop: '8px', display: 'block' }}>{status}</small>
     </div>
   );
 }
